@@ -24,9 +24,11 @@ import dateutil.parser
 # anti-bot protection pages.
 #
 import requests
+
 session_factory = requests.session
 try:
     import cloudscraper
+
     session_factory = cloudscraper.create_scraper
 except (ImportError):
     pass
@@ -113,7 +115,6 @@ class GarminClient(object):
 
         self.session = None
 
-
     def __enter__(self):
         self.connect()
         return self
@@ -194,7 +195,6 @@ class GarminClient(object):
             "service": "https://connect.garmin.com/modern/",
             "gauthHost": "https://sso.garmin.com/sso",
         }
-
 
     @staticmethod
     def _extract_auth_ticket_url(auth_response):
@@ -434,12 +434,12 @@ class GarminClient(object):
         :rtype: int
         """
         response = self.session.get("https://connect.garmin.com/proxy/activity-service/activity/status/{}/{}?_={}".format(
-            creation_date[:10], uuid.replace("-",""), int(datetime.now().timestamp()*1000)), headers={"nk": "NT"})
+            creation_date[:10], uuid.replace("-", ""), int(datetime.now().timestamp() * 1000)), headers={"nk": "NT"})
         if response.status_code == 201 and response.headers["location"]:
             # location should be https://connectapi.garmin.com/activity-service/activity/ACTIVITY_ID
             return int(response.headers["location"].split("/")[-1])
         elif response.status_code == 202:
-            return None # still processing
+            return None  # still processing
         else:
             response.raise_for_status()
 
@@ -500,7 +500,7 @@ class GarminClient(object):
             retryer = Retryer(
                 returnval_predicate=bool,
                 delay_strategy=ExponentialBackoffDelayStrategy(initial_delay=timedelta(seconds=1)),
-                stop_strategy=MaxRetriesStopStrategy(6), # wait for up to 64 seconds (2**6)
+                stop_strategy=MaxRetriesStopStrategy(6),  # wait for up to 64 seconds (2**6)
                 error_strategy=None
             )
             activity_id = retryer.call(self._poll_upload_completion, j["uploadUuid"]["uuid"], j["creationDate"])
@@ -536,3 +536,34 @@ class GarminClient(object):
                     activity_id, response.status_code, response.text))
 
         return activity_id
+
+    @require_session
+    def get_calendar(self, year=None, month=None, day=None):
+        now = datetime.now()
+        base_url = 'https://connect.garmin.com/proxy/calendar-service/year'
+        if all([param is None for param in (year, month, day)]):
+            url = f'{base_url}/{now.year}/month/{now.month - 1}'
+        else:
+            if year is None:
+                year = now.year
+            url = f'{base_url}/{year}'
+            if month is not None:
+                url = f'{url}/month/{month}'
+                if day is not None:
+                    url = f'{url}/day/{day}/start/1'
+            elif day is not None:
+                url = f'{url}/month/{now.month}/day/{day}/start/1'
+        encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
+        # full_url = f'https://connect.garmin.com/proxy/calendar-service/year/{year}/month/{zero_based_month}/day/{day}/start/1'
+        response = self.session.get(url, headers=encoding_headers)
+        if response.status_code != 200:
+            raise Exception('Failed to get this weeks calendar')
+        return response.json()
+
+    @require_session
+    def get_workout(self, workout_id):
+        encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
+        response = self.session.get(f'https://connect.garmin.com/proxy/workout-service/schedule/{workout_id}', headers=encoding_headers)
+        if response.status_code != 200:
+            raise Exception(f'Failed to get workout <{workout_id}>')
+        return response.json()
