@@ -548,20 +548,19 @@ class GarminClient(object):
                 year = now.year
             url = f'{base_url}/{year}'
             if month is not None:
-                url = f'{url}/month/{month}'
+                url = f'{url}/month/{month - 1}'
                 if day is not None:
                     url = f'{url}/day/{day}/start/1'
             elif day is not None:
-                url = f'{url}/month/{now.month}/day/{day}/start/1'
+                url = f'{url}/month/{now.month - 1}/day/{day}/start/1'
         encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
-        # full_url = f'https://connect.garmin.com/proxy/calendar-service/year/{year}/month/{zero_based_month}/day/{day}/start/1'
         response = self.session.get(url, headers=encoding_headers)
         if response.status_code != 200:
             raise Exception('Failed to get this weeks calendar')
         return response.json()
 
     @require_session
-    def get_workout(self, workout_id):
+    def get_scheduled_workout(self, workout_id):
         encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
         response = self.session.get(f'https://connect.garmin.com/proxy/workout-service/schedule/{workout_id}', headers=encoding_headers)
         if response.status_code != 200:
