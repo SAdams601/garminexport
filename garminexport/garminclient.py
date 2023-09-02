@@ -566,3 +566,19 @@ class GarminClient(object):
         if response.status_code != 200:
             raise Exception(f'Failed to get workout <{workout_id}>')
         return response.json()
+
+    @require_session
+    def list_workouts(self, start=1, limit=999):
+        encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
+        response = self.session.get(f'https://connect.garmin.com/proxy/workout-service/workouts?start={start}&limit={limit}&myWorkoutsOnly=true&sharedWorkoutsOnly=false', headers=encoding_headers)
+        if response.status_code != 200:
+            raise Exception(f'Failed to get workout list')
+        return response.json()
+
+    @require_session
+    def get_workout(self, workout_id):
+        encoding_headers = {"Content-Type": "application/json; charset=UTF-8"}
+        response = self.session.get(f'https://connect.garmin.com/proxy/workout-service/workout/{workout_id}', headers=encoding_headers)
+        if response.status_code != 200:
+            raise Exception(f'Failed to get workout <{workout_id}>')
+        return response.json()
